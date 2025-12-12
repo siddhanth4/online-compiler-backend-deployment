@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-g",
+                "${file}", // Compiles the currently open file
+                "-o",
+                "${fileDirname}\\${fileBasenameNoExtension}.exe" // Output executable name
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "detail": "Generated task by g++."
+        }
+    ]
+}
