@@ -153,9 +153,23 @@ app.post("/run", async (req, res) => {
 
     return res.status(201).json({ jobId });
   } catch (err) {
-    console.error("Run error:", err && (err.stack || err));
-    return res.status(500).json({ success: false, error: "Server error" });
+  // Log the full error server-side (Vercel logs)
+  console.error("Run error (full):", err && (err.stack || err));
+
+  // Build a safe, predictable error payload to return to the frontend
+  const safeErr = {
+    message: err && err.message ? err.message : "Unknown server error",
+    details: err && err.details ? err.details : undefined,
+  };
+
+  // If the error came from child_process, it may have stderr/stdout fields
+  if (err && typeof err === "object") {
+    if (err.stderr) safeErr.stderr = String(err.stderr);
+    if (err.stdout) safeErr.stdout = String(err.stdout);
   }
+
+  return res.status(500).json({ success: false, error: safeErr });
+}
 });
 
 // GET /status?id=...
