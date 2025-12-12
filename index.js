@@ -68,6 +68,20 @@
 
 
 
+
+
+
+
+// Add these near the top of index.js
+process.on("unhandledRejection", (reason, p) => {
+  console.error("Unhandled Rejection at:", p, "reason:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
+
 // index.js
 // CommonJS style for simplicity with your current package.json
 
