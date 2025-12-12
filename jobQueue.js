@@ -154,23 +154,18 @@
 
 
 
-
-
-
 // jobQueue.js
 const Job = require("./models/Job");
 const { executeCpp } = require("./executeCpp");
 const { executePy } = require("./executePy");
 
-// Only require 'bull' if REDIS_URL is explicitly provided.
-// This avoids loading/initializing bull when not needed in serverless.
+// Only load bull if REDIS_URL configured
 let Queue = null;
 if (process.env.REDIS_URL) {
   try {
-    // require only when REDIS_URL configured
     Queue = require("bull");
   } catch (e) {
-    console.warn("bull is not installed or failed to load:", e && e.message);
+    console.warn("bull failed to load:", e && e.message);
     Queue = null;
   }
 }
@@ -230,7 +225,7 @@ if (process.env.REDIS_URL && Queue) {
           if (jobDoc) {
             jobDoc.completedAt = new Date();
             jobDoc.status = "error";
-            jobDoc.output = JSON.stringify(err);
+            jobDoc.output = typeof err === "string" ? err : JSON.stringify(err);
             await jobDoc.save();
           }
         } catch (ignore) {}
@@ -240,12 +235,11 @@ if (process.env.REDIS_URL && Queue) {
   }
 
   async function addJobToQueue(jobId, meta = {}) {
-    // Run asynchronously without blocking response
     setImmediate(async () => {
       try {
         await processJobById(jobId, meta);
       } catch (err) {
-        console.error("In-memory job error for", jobId, err);
+        console.error("In-memory job error for", jobId, err && (err.stack || err));
       }
     });
   }

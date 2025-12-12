@@ -67,39 +67,29 @@
 
 
 
+// index.js
+// Defensive Express app entry. Export app (no app.listen here) so serverless platforms can import it.
 
-
-
-
-// index.js (add at the very top)
 console.log("INDEX: starting module load —", new Date().toISOString());
 
 process.on("unhandledRejection", (reason, p) => {
   console.error("INDEX: unhandledRejection at:", p, "reason:", reason);
 });
-
 process.on("uncaughtException", (err) => {
   console.error("INDEX: uncaughtException:", err && err.stack ? err.stack : err);
 });
 
-// index.js
-// CommonJS style for simplicity with your current package.json
-
 const express = require("express");
-// after `const app = express();`
-console.log("INDEX: express app created");
-
 const cors = require("cors");
 const mongoose = require("mongoose");
-const path = require("path");
 require("dotenv").config();
 
-const app = express();
-
-// Bring in modules (these files also updated below)
 const { generateFile } = require("./generateFile");
 const { addJobToQueue, startLocalWorkerIfNeeded } = require("./jobQueue");
-const Job = require("./models/Job"); // ensure models/Job.js exists
+const Job = require("./models/Job");
+
+const app = express();
+console.log("INDEX: express app created");
 
 // Middleware
 app.use(cors());
@@ -123,23 +113,20 @@ async function connectToDatabaseIfNeeded() {
     isConnected = true;
     console.log("Connected to MongoDB");
   } catch (err) {
-    console.error("MongoDB connection failed (continuing without DB):", err.message || err);
-    // Do not throw — serverless must not crash during init
+    console.error("MongoDB connection failed (continuing without DB):", err && err.message ? err.message : err);
+    // do not throw — serverless must not crash during init
   }
 }
 
 // Call once at cold-start (non-blocking)
 connectToDatabaseIfNeeded();
 
-// If using local in-memory worker, start it (noop if using Redis-backed bull)
+// Start local worker if needed (no-op when REDIS_URL + bull used)
 startLocalWorkerIfNeeded();
 
-// Middleware ensures DB connect attempt before processing (non-blocking connection attempt)
+// ensure db connection attempt on each request if not connected
 app.use((req, res, next) => {
-  if (!isConnected) {
-    // Try connect but do not await — avoid blocking serverless cold start
-    connectToDatabaseIfNeeded();
-  }
+  if (!isConnected) connectToDatabaseIfNeeded();
   next();
 });
 
@@ -151,7 +138,6 @@ app.post("/run", async (req, res) => {
   }
 
   try {
-    // Save code to file
     const filepath = await generateFile(language, code);
 
     // If DB available, create Job document; otherwise create a lightweight object
@@ -159,18 +145,16 @@ app.post("/run", async (req, res) => {
     if (isConnected) {
       jobDoc = await new Job({ language, filepath }).save();
     } else {
-      // Create a pseudo job id using timestamp+random for non-DB mode
       jobDoc = { _id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, language, filepath, status: "pending" };
     }
 
     const jobId = jobDoc._id;
-    // enqueue job (Bull if configured, or local immediate handler)
     await addJobToQueue(jobId, { language, filepath, useDb: isConnected });
 
-    res.status(201).json({ jobId });
+    return res.status(201).json({ jobId });
   } catch (err) {
-    console.error("Run error:", err);
-    res.status(500).json({ success: false, error: "Server error" });
+    console.error("Run error:", err && (err.stack || err));
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
@@ -181,22 +165,20 @@ app.get("/status", async (req, res) => {
 
   try {
     if (!isConnected) {
-      // If DB not connected, we can't fetch job — return helpful message
       return res.status(200).json({ success: true, job: { _id: jobId, status: "unknown", note: "DB not configured. Use MONGO_URI to enable persistent job status." } });
     }
     const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ success: false, error: "couldn't find job" });
     return res.status(200).json({ success: true, job });
   } catch (err) {
-    console.error("Status error:", err);
+    console.error("Status error:", err && (err.stack || err));
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
-// Health
+// Health check
 app.get("/", (req, res) => res.json({ status: "ok" }));
 
-// Export app for serverless platforms
+// Export app for serverless (CommonJS) and also add default for ESM importers
 module.exports = app;
-
 module.exports.default = app;
