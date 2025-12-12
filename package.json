@@ -8,13 +8,13 @@
     "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "vercel-start": "node app.js"
-
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "bull": "^4.16.3",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.21.1",
     "mongoose": "^8.7.1",
     "uuid": "^10.0.0"
@@ -22,5 +22,7 @@
   "devDependencies": {
     "nodemon": "^3.1.7"
   },
-  "engines": { "node": "24.x" }
+  "engines": {
+    "node": "24.x"
+  }
 }

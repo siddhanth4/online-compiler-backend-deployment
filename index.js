@@ -198,3 +198,5 @@ app.get("/", (req, res) => res.json({ status: "ok" }));
 
 // Export app for serverless platforms
 module.exports = app;
+
+module.exports.default = app;
