@@ -71,21 +71,24 @@
 
 
 
+// index.js (add at the very top)
+console.log("INDEX: starting module load —", new Date().toISOString());
 
-// Add these near the top of index.js
 process.on("unhandledRejection", (reason, p) => {
-  console.error("Unhandled Rejection at:", p, "reason:", reason);
+  console.error("INDEX: unhandledRejection at:", p, "reason:", reason);
 });
 
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
+  console.error("INDEX: uncaughtException:", err && err.stack ? err.stack : err);
 });
-
 
 // index.js
 // CommonJS style for simplicity with your current package.json
 
 const express = require("express");
+// after `const app = express();`
+console.log("INDEX: express app created");
+
 const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
